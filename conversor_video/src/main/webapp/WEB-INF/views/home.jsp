@@ -30,7 +30,7 @@
 	<P><label class="instrucao">Para visualizar um vídeo, clique no ícone para conversão.</label></p>
 	<table class="tabela" border="1">
 		<tr>
-			<td><b>Nome original</b></td>
+			<td><b>Arquivo original</b></td>
 			<td><b>Arquivo convertido</b></td>
 			<td>&nbsp;</td>
 			<td>&nbsp;</td>

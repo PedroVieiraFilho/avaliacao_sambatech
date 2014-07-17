@@ -1,4 +1,4 @@
-package com.sambatech.conversorvideo;
+package com.sambatech.conversorvideo.controller;
 
 import java.text.DateFormat;
 import java.util.Date;
@@ -34,6 +34,30 @@ public class HomeController {
 		model.addAttribute("serverTime", formattedDate );
 		
 		return "home";
+	}
+	
+	public String guardarArquivoAction() {
+		return "guardarArquivo";
+	}
+	
+	public String executarConversaoArquivoAction() {
+		return "executarConversaoArquivo";
+	}
+	
+	public String carregarListaArquivosAction() {
+		return "carregarListaArquivos";
+	}
+	
+	public String executarArquivoAction() {
+		return "executarArquivo";
+	}
+
+	public String downloadAction() {
+		return "download";
+	}
+	
+	public String apagarArquivoAction() {
+		return "apagarArquivo";
 	}
 	
 }
