@@ -105,6 +105,7 @@ public class ConversaoVideo {
 	public Processo enviaArquivoParaEnconding(Properties configuracoes, String urlSourceMedia){
         String userID = configuracoes.getProperty("integracao_enconding.userid");
         String userKey = configuracoes.getProperty("integracao_enconding.userkey");
+        
         StringBuffer xml = new StringBuffer();
         String nomeProcessoAtual = "enviaArquivoParaEnconding";
         Processo processoEnvio = new Processo(nomeProcessoAtual);

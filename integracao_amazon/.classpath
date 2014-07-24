@@ -6,6 +6,15 @@
 	<classpathentry kind="lib" path="C:/Users/Pedro/Downloads/aws-java-sdk-1.8.5/aws-java-sdk-1.8.5/lib/aws-java-sdk-1.8.5-javadoc.jar"/>
 	<classpathentry kind="lib" path="C:/Users/Pedro/Downloads/aws-java-sdk-1.8.5/aws-java-sdk-1.8.5/lib/aws-java-sdk-1.8.5-sources.jar"/>
 	<classpathentry kind="lib" path="C:/Users/Pedro/Downloads/aws-java-sdk-1.8.5/aws-java-sdk-1.8.5/lib/aws-java-sdk-flow-build-tools-1.8.5.jar"/>
-	<classpathentry kind="src" path="/conversor_video"/>
+	<classpathentry kind="lib" path="C:/Users/Pedro/.m2/repository/org/springframework/spring-web/3.1.1.RELEASE/spring-web-3.1.1.RELEASE.jar" sourcepath="C:/Users/Pedro/.m2/repository/org/springframework/spring-web/3.1.1.RELEASE/spring-web-3.1.1.RELEASE-sources.jar">
+		<attributes>
+			<attribute name="maven.pomderived" value="true"/>
+			<attribute name="maven.groupId" value="org.springframework"/>
+			<attribute name="maven.artifactId" value="spring-web"/>
+			<attribute name="maven.version" value="3.1.1.RELEASE"/>
+			<attribute name="maven.scope" value="compile"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="src" path="/sambatech"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

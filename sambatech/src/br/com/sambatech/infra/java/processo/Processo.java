@@ -119,4 +119,10 @@ public class Processo {
 		this.listaSubProcessosExecutados.add(subprocesso);
 	}
 	
+	public void redefineSituacaoProcessoAtual(Processo subprocesso) {
+		this.setMsgErro(subprocesso.getMsgErro());
+		this.setMsgSucesso(subprocesso.getMsgSucesso());
+		this.setStatus(subprocesso.getStatus());
+	}
+	
 }

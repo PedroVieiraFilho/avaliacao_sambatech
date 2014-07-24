@@ -1,16 +1,27 @@
 package com.amazon.servicos;
 
-import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.UUID;
 
+import org.springframework.web.multipart.MultipartFile;
+
+import br.com.sambatech.infra.java.processo.Processo;
+import br.com.sambatech.infra.java.processo.StatusProcesso;
+
+import com.amazon.classes.MetadadosArquivo;
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonServiceException;
+import com.amazonaws.auth.AWSCredentials;
+import com.amazonaws.auth.profile.ProfileCredentialsProvider;
 import com.amazonaws.regions.Region;
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
-// Define identificador do arquivo no serviço (bucket)
-// Cria bucket
 import com.amazonaws.services.s3.model.GetObjectRequest;
 import com.amazonaws.services.s3.model.ListObjectsRequest;
 import com.amazonaws.services.s3.model.ObjectListing;
@@ -18,38 +29,76 @@ import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.s3.model.S3ObjectInputStream;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
-import com.sambatech.conversorvideo.geral.ArquivosDTO;
 
 public class ArmazenamentoNuvem {
-	String bucketNamePrefix = "s3-bucket-sambatech-conversor-video-";
-
 	public AmazonS3 s3;
+	public AWSCredentials credenciais;
 
-	public ArmazenamentoNuvem() {
-		s3 = new AmazonS3Client();
+	public ArmazenamentoNuvem() {		
+		this.setS3(new AmazonS3Client(new ProfileCredentialsProvider()));
 		Region usWest2 = Region.getRegion(Regions.US_WEST_2);
-		s3.setRegion(usWest2);
+		this.getS3().setRegion(usWest2);
 	}
+	
+	public Processo criaBucket(String nomeBucket){
+    	Processo processoAtual = new Processo("criaBucket");
+		
+		try {
+			processoAtual.setStatus(StatusProcesso.INICIADO);
+			
+			// Verifica se o bucket existe
+			if (!this.getS3().doesBucketExist(nomeBucket)) {
+				// Cria bucket
+				System.out.println("Creating bucket " + nomeBucket + "\n");
+				this.getS3().createBucket(nomeBucket);
+				processoAtual.setStatus(StatusProcesso.FINALIZADO_SUCESSO);	
+			}
+		} catch (AmazonClientException exception) {
+			processoAtual.setMsgErro(exception.getMessage());
+			processoAtual.setStatus(StatusProcesso.FINALIZADO_FALHA);
+		}
+		return processoAtual;
+	}
+	
 
-	public String enviaArquivo(String nomeArquivo, String mediaId, File streamArquivo) {
-		String resultadoProcesso = "";
+	public Processo enviaArquivoLocal(String nomeBucket, String nomeDiretorio, String nomeArquivo, String descricao, MultipartFile conteudoArquivo) {
+		Processo processoAtual = new Processo("criaBucket");
 		String msgErro = "";
+		Boolean continuaProcesso = true;
 
 		// Define identificador do arquivo no serviço (bucket)
-		String bucketName = bucketNamePrefix + mediaId;
-		String key = nomeArquivo;
+		String key = UUID.randomUUID().toString().replaceAll("-", ""); 
 
 		try {
-			// Cria bucket
-			System.out.println("Creating bucket " + bucketName + "\n");
-			this.s3.createBucket(bucketName);
+			Processo subProcessoCriaBucket = this.criaBucket(nomeBucket);
+			
+			if (subProcessoCriaBucket.getStatus().equals(StatusProcesso.FINALIZADO_FALHA)) {
+				processoAtual.redefineSituacaoProcessoAtual(subProcessoCriaBucket);
+				return subProcessoCriaBucket;
+			}
+			
+			//TODO - Adiciona para diretório
+			
+			//Cria metadados
+			MetadadosArquivo metaArq = new MetadadosArquivo();
+			metaArq.setNome(nomeArquivo);
+			metaArq.setDataCriacao(new Date());
+			metaArq.setDescricao(descricao);
+			metaArq.setTamanho(conteudoArquivo.getSize());
+
+			//Obtem conteúdo do arquivo
+			InputStream inputStream = conteudoArquivo.getInputStream();
+			
+			//Referência: docs.aws.amazon.com/AmazonS3/latest/dev/IIJavaUploadFile.html
+			//InitiateMultipartUploadRequest initRequest = new InitiateMultipartUploadRequest(nomeBucket, key);
+			//InitiateMultipartUploadResult initResponse = s3.initiateMultipartUpload(initRequest);
 
 			// Faz upload arquivo
 			System.out.println("Uploading a new object to S3 from a file\n");
-			s3.putObject(new PutObjectRequest(bucketName, key, streamArquivo));
+			s3.putObject(new PutObjectRequest(nomeBucket, key, inputStream, metaArq.getObjectMetadata()));
 
-			resultadoProcesso = "SUCESSO - BucketName " + bucketName
-					+ " successfully created.";
+			processoAtual.setMsgSucesso("SUCESSO - BucketName " + nomeBucket + " successfully created.");
+			processoAtual.setStatus(StatusProcesso.FINALIZADO_SUCESSO);
 
 		} catch (AmazonServiceException ase) {
 			msgErro = "Caught an AmazonServiceException, which means your request made it "
@@ -61,7 +110,8 @@ public class ArmazenamentoNuvem {
 			msgErro.concat("Error Type:       " + ase.getErrorType() + "\r\n");
 			msgErro.concat("Request ID:       " + ase.getRequestId() + "\r\n");
 			msgErro = "FALHA - ".concat(msgErro);
-			resultadoProcesso = msgErro;
+			processoAtual.setMsgErro(msgErro);
+			processoAtual.setStatus(StatusProcesso.FINALIZADO_FALHA);
 			System.out.println(msgErro);
 		} catch (AmazonClientException ace) {
 			msgErro = "Caught an AmazonClientException, which means the client encountered "
@@ -69,18 +119,24 @@ public class ArmazenamentoNuvem {
 					+ "such as not being able to access the network. Error Message: "
 					+ ace.getMessage();
 			msgErro = "FALHA - ".concat(msgErro);
-			resultadoProcesso = msgErro;
+			processoAtual.setMsgErro(msgErro);
 			System.out.println(msgErro);
-		}
+			processoAtual.setStatus(StatusProcesso.FINALIZADO_FALHA);
+		} catch (FileNotFoundException e) {
+			processoAtual.setMsgErro(e.getMessage());
+			processoAtual.setStatus(StatusProcesso.FINALIZADO_FALHA);
+		} catch (IOException e) {
+			processoAtual.setMsgErro(e.getMessage());
+			processoAtual.setStatus(StatusProcesso.FINALIZADO_FALHA);		}
 
-		return resultadoProcesso;
+		return processoAtual;
 	}
-
-	public Boolean verificaArquivoExiste(String nomeArquivo) {
+	
+	public Boolean verificaArquivoExiste(String nomeBucket, String nomeArquivo) {
 		Boolean arquivoExiste = false;
 
 		ObjectListing objectListing = s3.listObjects(new ListObjectsRequest()
-				.withBucketName(bucketNamePrefix));
+				.withBucketName(nomeBucket));
 		for (S3ObjectSummary objeto : objectListing.getObjectSummaries()) {
 			if (objeto.getKey() == nomeArquivo) {
 				arquivoExiste = true;
@@ -90,32 +146,31 @@ public class ArmazenamentoNuvem {
 
 		return arquivoExiste;
 	}
+	
+	public List<MetadadosArquivo> listaArquivos(String nomeBucket, String prefixo, String diretorioNuvem) {
+		ArrayList<MetadadosArquivo> listaArquivos = new ArrayList<MetadadosArquivo>();
+		MetadadosArquivo metaArq;
 
-	public ArrayList<ArquivosDTO> listaArquivos(String diretorioNuvem) {
-		ArrayList<ArquivosDTO> listaArquivos = new ArrayList<ArquivosDTO>();
-		ArquivosDTO registroArquivo;
-
-		ObjectListing objectListing = s3.listObjects(new ListObjectsRequest()
-				.withBucketName(bucketNamePrefix));
-		for (S3ObjectSummary objeto : objectListing.getObjectSummaries()) {
-			registroArquivo = new ArquivosDTO();
-
-			registroArquivo.setNomeOriginal(objeto.getKey());
-			registroArquivo.setTamanho(objeto.getSize());
-			registroArquivo.setUsuarioCriacao(objeto.getOwner().getDisplayName());
-
-			System.out.println(" - " + objeto.getKey() + "  " + "(size = "
-					+ objeto.getSize() + ")");
-			listaArquivos.add(registroArquivo);
-		}
+        ListObjectsRequest listObjectsRequest = new ListObjectsRequest().withBucketName(nomeBucket);
+        ObjectListing objectListing;
+        
+	    do {
+	        objectListing = this.getS3().listObjects(listObjectsRequest);
+	        for (S3ObjectSummary objectSummary : objectListing.getObjectSummaries()) {
+	            System.out.println(" - " + objectSummary.getKey() + "  " +
+	                    "(size = " + objectSummary.getSize() + 
+	                    ")");
+	        }
+	        listObjectsRequest.setMarker(objectListing.getNextMarker());
+	    } while (objectListing.isTruncated());
 
 		return listaArquivos;
 	}
 	
-	public S3ObjectInputStream baixaArquivo(String nomeArquivo) {
+	public S3ObjectInputStream baixaArquivo(String nomeBucket, String nomeArquivo) {
 		String bucketName = "";
 		
-		ObjectListing objectListing = s3.listObjects(new ListObjectsRequest().withBucketName(bucketNamePrefix));
+		ObjectListing objectListing = s3.listObjects(new ListObjectsRequest().withBucketName(nomeBucket));
 		for (S3ObjectSummary objeto : objectListing.getObjectSummaries()) {
 			if (objeto.getKey() == nomeArquivo) {
 				bucketName = objeto.getBucketName();
@@ -129,4 +184,19 @@ public class ArmazenamentoNuvem {
 		return streamArquivo;
 	}
 
+	public AmazonS3 getS3() {
+		return s3;
+	}
+
+	public void setS3(AmazonS3 s3) {
+		this.s3 = s3;
+	}
+
+	public AWSCredentials getCredenciais() {
+		return credenciais;
+	}
+
+	public void setCredenciais(AWSCredentials credenciais) {
+		this.credenciais = credenciais;
+	}
 }
