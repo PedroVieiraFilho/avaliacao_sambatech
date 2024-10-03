@@ -22,11 +22,11 @@
 		</dependency>
 		
 		<!-- Apache Commons IO -->
-		<dependency>
+		<!--<dependency>
 			<groupId>commons-io</groupId>
 			<artifactId>commons-io</artifactId>
 			<version>2.4</version>
-		</dependency>	
+		</dependency>-->
 	
 		<!-- Spring -->
 		<dependency>
